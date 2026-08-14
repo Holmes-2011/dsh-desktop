@@ -1,0 +1,7 @@
+# 大文件不进仓库(作为 Release 附件分发)
+/vendor/
+/node_modules/
+/dist/
+/DeepSeek Harness 本地版.app/
+/tools/
+.DS_Store

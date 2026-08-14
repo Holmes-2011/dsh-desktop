@@ -1,0 +1,16 @@
+{
+  "name": "deepseek-harness-desktop",
+  "productName": "DeepSeek Harness",
+  "version": "0.2.0",
+  "description": "DeepSeek Harness 桌面版 — 自包含:内置 Node 与 dsh 运行时,自动启动 dsh web 后端并加载浏览器 UI,无需系统全局安装",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "resolve": "electron . --resolve",
+    "pack": "electron-packager . \"DeepSeek Harness\" --platform=darwin --arch=arm64 --overwrite --app-bundle-id=com.deepseek.harness.desktop --icon=build/icon-deepseek.icns --asar=false"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-packager": "^17.1.2"
+  }
+}

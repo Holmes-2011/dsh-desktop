@@ -1,3 +1,7 @@
+> ⚠️ **非官方声明 / Disclaimer**
+>
+> 本应用的 **APP 外包装(桌面壳)非深度求索(DeepSeek)官方包装**,由第三方构建;整体**仅作测试使用**,请勿用于生产环境。
+
 # DeepSeek Harness 桌面版(本地版)
 
 把 DeepSeek Harness(通过 npm 安装的 `@deepseek-ai/dsh`)包装成一个**本地可运行**的 macOS 桌面应用。

@@ -1,79 +1,90 @@
-> ⚠️ **非官方声明 / Disclaimer**
->
-> 本应用的 **APP 外包装(桌面壳)非深度求索(DeepSeek)官方包装**,由第三方构建;整体**仅作测试使用**,请勿用于生产环境。
+# DeepSeek Harness Desktop (Local Edition)
 
-# DeepSeek Harness 桌面版(本地版)
+A **fully self-contained** macOS desktop app for DeepSeek Harness (the `@deepseek-ai/dsh`
+npm package): the Node.js runtime and the complete dsh backend are bundled inside the
+`.app`, so it runs locally with zero external dependencies — double-click and go.
 
-把 DeepSeek Harness(通过 npm 安装的 `@deepseek-ai/dsh`)包装成一个**本地可运行**的 macOS 桌面应用。
+> **Disclaimer**: the app shell is a third-party wrapper, not official DeepSeek
+> packaging. It is provided for testing purposes only.
 
-> **两个版本并存(互不影响)**:
-> - **本地版**(本仓库,`DeepSeek Harness 本地版.app`):完全自包含,内置 Node + dsh 运行时,双击即用。
-> - **网页版**(旧版,`~/Applications/DeepSeek Harness 网页版.app`):依赖系统全局 node / dsh,当前正在运行的就是它。
-> 两者都读写 `~/.dsh`,但窗口标题与 Dock 名称带有后缀,易于区分。
+## Features
 
-## 特性
+- **Self-contained**: `vendor/node` (Node.js v24 runtime) + `vendor/dsh` (the full
+  dsh runtime, ~330MB) are bundled. No system-wide node / dsh / npm required.
+- **LAN mode (phone/iPad access)**: menu "Mobile Access" → "LAN Mode". The backend
+  is patched to bind `0.0.0.0` (the official CLI deliberately blocks this for safety),
+  and a popup shows the LAN URL + QR code. Phone/iPad on the same Wi-Fi can open the
+  UI in a browser. A clear security warning is shown — turn it off when done.
+- **System fallback**: if the bundled files are missing (e.g. dev mode), it falls back
+  to system node / dsh.
+- **Data isolation**: data still lives in `~/.dsh` (override with `DSH_HOME`).
 
-- **完全自包含**:`.app` 内置了
-  - `vendor/node` — Node.js v24 独立运行时(与构建时编译原生模块的版本一致,保证 ABI 兼容)
-  - `vendor/dsh` — 完整的 dsh 运行时(CLI + 全部 `dsh-*` 插件与依赖,约 330MB)
-  - 启动时自动运行 `dsh web --port 0` 后端,并在 Electron 窗口内加载 Web UI
-- **零外部依赖**:不需要系统全局安装 node / dsh,不需要 npm,双击即可运行
-- **系统兜底**:若内置文件缺失(如开发模式),自动回退到系统里的 node / dsh
-- **数据独立**:后端数据仍写入 `~/.dsh`(可用 `DSH_HOME` 环境变量覆盖),升级应用不丢会话
-
-## 目录结构
+## Structure
 
 ```
 dsh-desktop/
-├── main.js              # Electron 主进程:解析运行时、启动后端、加载 UI
+├── main.js              # Electron main: runtime resolution, backend boot, UI
 ├── package.json
 ├── vendor/
-│   ├── node/node        # 内置 Node 运行时(121MB)
-│   └── dsh/             # 内置 dsh 运行时(333MB)
-├── build/               # 图标(DeepSeek 鲸鱼)
-├── loading.html         # 启动页
-├── error.html           # 错误页
-└── DeepSeek Harness 本地版.app   # 打包产物(含内置 vendor)
+│   ├── node/node        # bundled Node runtime
+│   └── dsh/             # bundled dsh runtime
+├── lan.html             # LAN-mode popup (URL + QR code)
+├── preload.js           # minimal IPC bridge for the LAN popup
+├── qrcode.js            # QR generator (vendored)
+├── build/               # icons (DeepSeek whale)
+├── loading.html         # startup page
+├── error.html           # error page
+└── dist/                # distributable DMG / ZIP
 ```
 
-## 使用
+## Usage
 
-### 直接运行
+### Run the packaged app
 
 ```bash
-open "DeepSeek Harness 本地版.app"
+open "dist/DeepSeek Harness-0.2.3-macOS-arm64.dmg"
 ```
 
-### 分发文件
-
-`dist/` 下提供两种安装格式(均含"本地版"后缀,与网页版区分):
-- `DeepSeek Harness 本地版-0.2.0-macOS-arm64.dmg`(推荐,双击挂载后拖入 Applications)
-- `DeepSeek Harness 本地版-0.2.0-macOS-arm64.zip`(备用)
-
-### 开发模式(需要本机有 node + 全局 dsh)
+### Dev mode (needs system node + global dsh)
 
 ```bash
-npm install        # 安装 electron / electron-packager(devDependencies)
-npm start          # electron . 启动
+npm install
+npm start            # electron .
 ```
 
-### 自检
+### Self-check
 
 ```bash
-npm run resolve    # 打印运行时解析结果(bundled / system / none)后退出
+npm run resolve      # prints runtime resolution (bundled / system / none) and exits
 ```
 
-### 重新打包
+## Build & sign
+
+> ⚠️ **Signing pitfall (iCloud)**: this workspace lives under `~/Documents`
+> (iCloud-synced), which stamps files with `com.apple.provenance` /
+> `com.apple.FinderInfo` attributes. `codesign` refuses to sign files carrying them,
+> producing an app with a broken outer signature → users see "app is damaged".
+> **Build and sign outside the iCloud-synced folder** (e.g. `/tmp`):
 
 ```bash
-npm run pack
-codesign --force --deep --sign - "DeepSeek Harness-darwin-arm64/DeepSeek Harness.app"
+rm -rf /tmp/build && mkdir -p /tmp/build
+cp -R "DeepSeek Harness 本地版.app" /tmp/build/
+cd /tmp/build
+xattr -cr "DeepSeek Harness 本地版.app"
+codesign --force --deep --sign - "DeepSeek Harness 本地版.app"
+codesign --verify --deep --strict "DeepSeek Harness 本地版.app"   # must print OK
 ```
 
-> 重新打包需要本机存在 `~/.local/lib/node_modules/@deepseek-ai/dsh`(npm 全局安装的 dsh)作为内置后端来源,以及 `~/.local/nodejs/` 下的 Node 运行时;脚本约定在 `vendor/` 中,可自行替换。
+When building the DMG, `hdiutil makehybrid` adds `com.apple.FinderInfo` to files
+inside the volume — mount the raw image read-write, run `xattr -cr` on the app,
+then `hdiutil convert` to UDZO. Always verify with
+`codesign --verify --deep --strict` afterwards.
 
-## 排障
+## Troubleshooting
 
-- **窗口显示"未找到 dsh 运行时"**:说明内置 `vendor/` 缺失且系统也没有全局 dsh,请重新打包或先 `npm install -g @deepseek-ai/dsh`。
-- **后端启动失败**:错误页会显示 dsh 进程的退出码;也可以从终端直接运行 `DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness --resolve` 查看解析结果。
-- **想用别的数据目录**:启动前设置 `DSH_HOME=/path/to/dir`。
+- **"dsh runtime not found"**: bundled `vendor/` is missing and no system dsh exists;
+  rebuild or run `npm install -g @deepseek-ai/dsh` first.
+- **Backend exits**: the error page shows the exit code; run
+  `DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness --resolve` for diagnostics.
+- **Gatekeeper on first launch**: right-click → Open (ad-hoc signed, not notarized).
+  If "damaged": `xattr -cr "/Applications/DeepSeek Harness.app"`.
